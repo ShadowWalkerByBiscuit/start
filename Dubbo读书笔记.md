@@ -63,10 +63,65 @@ cluster进行设置，value如下
 6.Broadcast 广播通知，逐一调用，任一一台报错就报错。  
 
 ## 负载均衡
-loadbalance进行设置，value如下：
-1.Random 随机。
-2.RoundRobin  轮询。
+loadbalance进行设置，value如下：  
+1.Random 随机。  
+2.RoundRobin  轮询。  
 3.LeastActive  最少活跃调用数，相同活跃数的随机，活跃数指调用前后计数差。  
 4.ConsistentHash 一致性 Hash，相同参数的请求总是发到同一提供者。  
 
-[书签记录](http://dubbo.apache.org/zh-cn/docs/user/demos/subscribe-only.html)
+## 几个比较有意思的配置：  
+1.结果缓存 cache  
+2.回声测试 直接强转EchoService，然后调用echo方法。  
+3.隐式参数 RpcContext.getContext().setAttachment("index", "1"); // 隐式传参，后面的远程调用都会隐式将这些参数发送到服务器端，类似cookie，用于框架集成，不建议常规业务使用  RpcContext.getContext().getAttachment("index");   
+
+## 异步调用
+首先要求服务提供方，定义接口返回值为CompletableFuture<>。  
+服务使用方，需要增加回调，
+```java
+// 调用直接返回CompletableFuture
+CompletableFuture<String> future = asyncService.sayHello("async call request");
+// 增加回调
+future.whenComplete((v, t) -> {
+    if (t != null) {
+        t.printStackTrace();
+    } else {
+        System.out.println("Response: " + v);
+    }
+});
+// 早于结果输出
+System.out.println("Executed before response return.");
+
+//使用RpcContext的方式 此调用会立即返回null
+asyncService.sayHello("world");
+// 拿到调用的Future引用，当结果返回后，会被通知和设置到此Future
+CompletableFuture<String> helloFuture = RpcContext.getContext().getCompletableFuture();
+//或者换一种方式调用
+CompletableFuture<String> future = RpcContext.getContext().asyncCall(
+    () -> {
+        asyncService.sayHello("oneway call request1");
+    }
+);
+
+future.get(); 
+```
+
+sent="true" 等待消息发出，消息发送失败将抛出异常。
+sent="false" 不等待消息发出，将消息放入 IO 队列，即刻返回。
+
+## 参数回调
+在注解里面配置callbacks methods，添加服务完成后的回调操作。
+
+## 本地存根
+stub 在服务提供方进行一次包装，做容错
+
+## 本地伪装
+mock 用于服务降级
+
+##  延迟暴露  
+delay=-1 表示等待spring初始化结束之后才向外暴露，设置其他数据为启动延迟的毫秒数，最新版本是默认在spring启动完成后才暴露
+
+# 优雅停机
+前提是使用kill pid，如果有-9 就不行。
+使用的是JDK 的 ShutdownHook （通过Runtime类的addShutdownHook方法）;  
+
+[书签记录](http://dubbo.apache.org/zh-cn/docs/user/demos/accesslog.html)
