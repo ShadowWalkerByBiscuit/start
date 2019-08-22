@@ -124,4 +124,39 @@ delay=-1 表示等待spring初始化结束之后才向外暴露，设置其他�
 前提是使用kill pid，如果有-9 就不行。
 使用的是JDK 的 ShutdownHook （通过Runtime类的addShutdownHook方法）;  
 
-[书签记录](http://dubbo.apache.org/zh-cn/docs/user/demos/accesslog.html)
+## 服务治理  
+通过telnet访问dubbo服务，可以通过命令行进行操作。
+
+## 可扩展点
+dubbo不是基于java原生的spi技术，只是核心思想是一致的，做到接口的动态扩展，典型的例子就是lb的配置实现。
+相较与java的ServerLoader，dubbo对应的扫描加载工具叫 ExtentionLoader。
+默认的扫描路径为：  
+META-INF/dubbo/internal  
+META-INF/dubbo  
+META-INF/services  
+java写文件的规则是在MEAT-INF/Service下创建一个文件，文件名为接口的完整名（包括全部的路径名，如org.apache.spi.Robot）
+内容为实现了该接口的实体类的全路径（可以存在多个实现类）
+dubbo的不同点在于文件内容是k-v形式，以提供根据参数化来实现动态配置。如 bumblebee = org.apache.spi.Bumblebee
+
+其中主要的注解为@SPI(RandomLoadBalance.NAME)，@Adaptive("loadbalance")
+@SPI的值为默认实现，@Adaptive的值为url中传递的k-v参数中的key，对应的value就是代替@SPI中的默认值，也就是上面提到文件中的key，决定了具体加载的实现类。
+
+## 扩展点的实现
+通过ExtensionLoader.getExtensionLoader(xxx)获取实例，然后根据xxx去找寻要加载的实体类，首先查找缓存中是否已经加载过，如果没有在缓存中，则创建。
+创建的过程是通过扫描文件中对应xxx的实现类的全路径，运用反射机制创建实例，创建完成之后还要注入依赖。接下来要包装成wrapper类。
+
+## 查询实体类过程
+首先解析了@SPI注解，把默认实现的value值缓存起来，然后依次去扫描默认的文件夹，然后解析里面的k-v对，然后将v指定的实现类加载并加入缓存。
+
+## @Adaptive 
+可以出现在类或者方法上。主要还是在方法上，如果某个某个实现类被 Adaptive 注解修饰了，那么该类就会被赋值给 cachedAdaptiveClass 变量。这样就会在加载的时候，访问缓存不为空，直接返回。这种情况是@SPI，跟@Adaptive都没有值的时候的时候，由实现类提供默认实现。Dubbo 要求该接口至少有一个方法被 Adaptive 注解修饰。这样才存在扩展加载的意义。Dubbo 不会为没有标注 Adaptive 注解的方法生成代理逻辑，对于该种类型的方法，仅会生成一句抛出异常的代码。
+@Adaptive({client, transporter})值可以是一个数组，第一个没有找到，则第二个起作用。
+
+## 服务导出
+scope = none，不导出服务
+scope != remote，导出到本地
+scope != local，导出到远程
+最重要的是Invoker 的创建  
+[书签](http://dubbo.apache.org/zh-cn/docs/source_code_guide/export-service.html)
+
+
