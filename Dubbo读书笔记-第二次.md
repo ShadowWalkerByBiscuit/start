@@ -23,9 +23,12 @@ Dubbo目前支持4种注册中心,（multicast,zookeeper,redis,simple） 推荐�
 3.注册中心，服务提供者，服务消费者三者之间均为长连接，监控中心除外。  
 4.注册中心和监控中心全部宕机，不影响已运行的提供者和消费者，消费者在本地缓存了提供者列表。同时缓存也会出现数据不一致问题。  
 
+配置文件加载的优先级：  
+-D > .xml > .property(-D的优先级最高)  
+
 dubbo提供多种配置方法，个人觉得最优雅的还是注解的形式。
 其中关键主键如下：  
-@Service（这个包名不是spring的，是阿里的）
+@Service（这个包名不是spring的，是阿里的，跟spring一样还要配置扫描的路径，为的是暴露服务跟引用服务）
 @Reference
 
 除了注册中心之外，还有一个配置中心，在服务治理（如lb），基础服务配置（就是property写的配置，如dubbo.properties中内容）提供配置。  
@@ -54,7 +57,7 @@ dubbo.consumer.check=false，是设置 check 的缺省值，如果配置中有�
 dubbo.registry.check=false，前面两个都是指订阅成功，但提供者列表是否为空是否报错，如果注册订阅失败时，也允许启动，需使用此选项，将在后台定时重试。
 
 ## 集群容错
-cluster进行设置，value如下  
+cluster进行设置（集群节点级别统一配），value如下  
 1.Failover 失败重试，可以配置重试次数（retries）  
 2.Failfast 快速失败，失败直接报错  
 3.Failsafe 失败忽略  
@@ -63,16 +66,28 @@ cluster进行设置，value如下
 6.Broadcast 广播通知，逐一调用，任一一台报错就报错。  
 
 ## 负载均衡
-loadbalance进行设置，value如下：  
+loadbalance进行设置（方法级别），value如下：  
 1.Random 随机。  
 2.RoundRobin  轮询。  
 3.LeastActive  最少活跃调用数，相同活跃数的随机，活跃数指调用前后计数差。  
 4.ConsistentHash 一致性 Hash，相同参数的请求总是发到同一提供者。  
 
+## 线程模型  
+在从接口到实现类的那一层，有一个分发器（dispatcher），有点像网络连接走mvc，分发器通不过不同的分发策略来决定是否加入线程池。
+
+##  服务分组  
+允许一个接口有多个实现，因为并不关心参数，所以无法通过签名区分，那么就通过制定分组（类似于制定命名空间）的方式解决问题。  
+
 ## 几个比较有意思的配置：  
 1.结果缓存 cache  
 2.回声测试 直接强转EchoService，然后调用echo方法。  
 3.隐式参数 RpcContext.getContext().setAttachment("index", "1"); // 隐式传参，后面的远程调用都会隐式将这些参数发送到服务器端，类似cookie，用于框架集成，不建议常规业务使用  RpcContext.getContext().getAttachment("index");   
+
+##  泛化接口调用  
+generic参数配置，其实就是通过反射的机制来参数具体的方法名，参数类型，参数值，调用。
+
+##  上下文信息  
+RpcContext 
 
 ## 异步调用
 首先要求服务提供方，定义接口返回值为CompletableFuture<>。  
@@ -106,19 +121,26 @@ future.get();
 ```
 
 sent="true" 等待消息发出，消息发送失败将抛出异常。
-sent="false" 不等待消息发出，将消息放入 IO 队列，即刻返回。
+sent="false" 不等待消息发出，将消息放入 IO 队列，即刻返回。  
+return="false" 不关心返回值，直接忽略返回值。  
+
+ AsyncContext 也可以用来提供异步访问   
 
 ## 参数回调
-在注解里面配置callbacks methods，添加服务完成后的回调操作。
+在注解里面配置callbacks methods，添加服务完成后的回调操作。  
+
+##  事件驱动  
+在接口调用的不同阶段分别会触发oninvoke、onreturn、onthrow三个时间，意味着我们可以指定这个三个事件发生时的动作。
 
 ## 本地存根
-stub 在服务提供方进行一次包装，做容错
+stub 在服务提供方进行一次包装，做容错，其实就在做了一层代理，在发起访问前做一些通用的校验一些的事情。
 
 ## 本地伪装
-mock 用于服务降级
+mock 用于服务降级，也是一层代理，在服务提供方挂掉的时候体统一些通用的返回，比如说404，或者是exception，这时候就可以做统一处理。
 
 ##  延迟暴露  
-delay=-1 表示等待spring初始化结束之后才向外暴露，设置其他数据为启动延迟的毫秒数，最新版本是默认在spring启动完成后才暴露
+delay=-1 表示等待spring初始化结束之后才向外暴露，设置其他数据为启动延迟的毫秒数，最新版本是默认在spring启动完成后才暴露。
+在 Spring 解析到 <dubbo:service /> 时，就已经向外暴露了服务，而 Spring 还在接着初始化其它 Bean。
 
 # 优雅停机
 前提是使用kill pid，如果有-9 就不行。
