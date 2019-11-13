@@ -142,12 +142,29 @@ mock 用于服务降级，也是一层代理，在服务提供方挂掉的时候
 delay=-1 表示等待spring初始化结束之后才向外暴露，设置其他数据为启动延迟的毫秒数，最新版本是默认在spring启动完成后才暴露。
 在 Spring 解析到 <dubbo:service /> 时，就已经向外暴露了服务，而 Spring 还在接着初始化其它 Bean。
 
+##  粘滞连接
+目的是请求总是打到同一台服务器，相对的是随机或者是不同的服务提供方。sticky="true"  
+
+##  服务降级
+对于微服务的治理，分熔断隔离，降级，限流。核心思想是，节省不必要的资源消耗，保证核心功能的正常使用。  
+
 # 优雅停机
 前提是使用kill pid，如果有-9 就不行。
 使用的是JDK 的 ShutdownHook （通过Runtime类的addShutdownHook方法）;  
 
 ## 服务治理  
 通过telnet访问dubbo服务，可以通过命令行进行操作。
+
+## 服务容器  
+单独以standalon的形式，加载程序，并对外暴露服务。相对于用tomcat启动，可以减少不必要的资源开销。  
+默认只加载spring，根据dubbo的spi技术，找到对应文件里面的配置，加载对应容器。  
+
+## Java序列化  
+使用Kryo和FST  
+
+## 服务暴露  
+核心两个类的核心方法为ServiceConfig.export()，ReferenceConfig.get()    
+get的底层是RegistryProtocol.refer()从配置中心获取url,在根据dubbo:// 协议头识别，调用DubboProtocol.refer()；
 
 ## 可扩展点
 dubbo不是基于java原生的spi技术，只是核心思想是一致的，做到接口的动态扩展，典型的例子就是lb的配置实现。
@@ -187,6 +204,6 @@ scope != local，导出到远程
 导入有三种1:本地2.直连3.注册中心，但是最后得到的都是一个Invoker。
 Invoker 是 Dubbo 的核心模型，代表一个可执行体。在服务提供方，Invoker 用于调用服务提供类。在服务消费方，Invoker 用于执行远程调用。
 这章也很难，理解了个大概。
-[书签](http://dubbo.apache.org/zh-cn/docs/source_code_guide/export-service.html)
+[书签](http://dubbo.apache.org/zh-cn/docs/dev/principals/code-detail.html)
 
 
