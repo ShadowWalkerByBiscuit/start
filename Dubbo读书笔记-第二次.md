@@ -178,7 +178,7 @@ java写文件的规则是在MEAT-INF/Service下创建一个文件，文件名为
 dubbo的不同点在于文件内容是k-v形式，以提供根据参数化来实现动态配置。如 bumblebee = org.apache.spi.Bumblebee
 
 其中主要的注解为@SPI(RandomLoadBalance.NAME)，@Adaptive("loadbalance")
-@SPI的值为默认实现，@Adaptive的值为url中传递的k-v参数中的key，对应的value就是代替@SPI中的默认值，也就是上面提到文件中的key，决定了具体加载的实现类。
+@SPI的值为默认实现，@Adaptive的值为url中传递的k-v参数中的key，对应的value就是代替@SPI中的默认值，也就是上面提到文件中的key，决定了具体加载的实现类。@Adaptive中的值可以是多个，一次查找，找不到第一个就接着找第二个。  
 
 ## 扩展点的实现
 通过ExtensionLoader.getExtensionLoader(xxx)获取实例，然后根据xxx去找寻要加载的实体类，首先查找缓存中是否已经加载过，如果没有在缓存中，则创建。
@@ -191,7 +191,8 @@ dubbo的不同点在于文件内容是k-v形式，以提供根据参数化来实
 可以出现在类或者方法上。主要还是在方法上，如果某个某个实现类被 Adaptive 注解修饰了，那么该类就会被赋值给 cachedAdaptiveClass 变量。这样就会在加载的时候，访问缓存不为空，直接返回。这种情况是@SPI，跟@Adaptive都没有值的时候的时候，由实现类提供默认实现。Dubbo 要求该接口至少有一个方法被 Adaptive 注解修饰。这样才存在扩展加载的意义。Dubbo 不会为没有标注 Adaptive 注解的方法生成代理逻辑，对于该种类型的方法，仅会生成一句抛出异常的代码。
 @Adaptive({client, transporter})值可以是一个数组，第一个没有找到，则第二个起作用。
 
-## 服务导出
+## 服务导出  
+Dubbo 服务导出过程始于 Spring 容器发布刷新事件，Dubbo 在接收到事件后，会立即执行服务导出逻辑。(容器启动发布事件，通过事件监听触发)  
 scope = none，不导出服务
 scope != remote，导出到本地
 scope != local，导出到远程
@@ -205,5 +206,12 @@ scope != local，导出到远程
 Invoker 是 Dubbo 的核心模型，代表一个可执行体。在服务提供方，Invoker 用于调用服务提供类。在服务消费方，Invoker 用于执行远程调用。
 这章也很难，理解了个大概。
 [书签](http://dubbo.apache.org/zh-cn/docs/dev/principals/code-detail.html)
+
+##  魔鬼在细节  
+1 防止空指针跟越界异常  
+2 时刻考虑多线程的情况会不会出现异常，因为小范围的测试是没办法暴露的。  
+3 尽早失败和前置断言，就是强制要求传参的时候提前做校验。  
+
+
 
 
