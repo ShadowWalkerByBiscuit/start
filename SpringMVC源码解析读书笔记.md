@@ -10,7 +10,7 @@ Tomcat的main函数在Boostrap类中。
 
 因为涉及到XML文件的解析，所以使用量Apache的开源主键Digester。
 
-在container的流程中，通过pipeline的形式，可以向其中注册handler用于过程中的处理。  
+在container的流程中，进入到Engine的阶段，通过pipeline的形式，可以向其中注册handler用于过程中的处理。
 
 Tomcat对于各个组件的管理，是通过lifeCircle接口来实现了生命周期的管理。LifecycleEvent是生命周期中发布事件，通过事件驱动（监听者模式）来调用逻辑，
 lifeCircle->lifeCircleBase->lifeCircleSupport.
@@ -18,7 +18,7 @@ lifeCircle->lifeCircleBase->lifeCircleSupport.
 这里提到了JMX，可以简单的理解为java对于一些资源，组件的容器管理，相对于spring的容器管理要更底层，例如硬件，网络，协议等等这方面的资源进行调度跟统一
 转换适配，也就是常见的MBean。  
 
-所有容器的转态转换（如新疆、初始化、启动、停止等）都是由外到内，由上到下进行，即先执行父容器的状态转换及相关操作，
+所有容器的转态转换（如新建、初始化、启动、停止等）都是由外到内，由上到下进行，即先执行父容器的状态转换及相关操作，
 然后再执行子容器的转态转换，这个过程是层层迭代执行的。  
 
 标准启动过程：  
