@@ -41,3 +41,6 @@ SpringMVC的本质就是一个Servlet，可以定义多个dispatchServlet，然�
 Handler--处理器，对应controller  
 HandlerMapping--在map中寻找到对应的Controller，也就是RequestMapping的作用。  
 HandlerAdaper--这里就是做一些适配作用。  
+
+tomcat的连接池，是对原生的连接池进行了扩展的。  
+主要的是在连接池的队列那块，自己实现了TaskQueue，重写了里面的offer方法，配合executePool里面的逻辑，实现了0->core->max->队列，而原生的线程池都是先从0->core->队列->max这么一个顺序，再有加入就直接reject了。这里的队列默认是linkedblockingqueue，那么队列的长度Integer.max很大，就会出现达不到max线程数的缺陷，这拓展了之后就弥补了这个点，相类似的实现还有dubbo的eager线程池。
