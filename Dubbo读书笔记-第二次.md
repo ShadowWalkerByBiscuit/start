@@ -5,8 +5,9 @@
 架构：
 组件：1.container 2.provider 3.register 4.consumer 5.monitor  
 值得注意的是，consumer与register之间采用了异步订阅模式，当服务上线或者下线，获取对应的地址。  
-Dubbo目前支持4种注册中心,（multicast,zookeeper,redis,simple） 推荐使用Zookeeper注册中心  
-[register简介](https://www.cnblogs.com/duanxz/p/3772765.html)  
+Dubbo目前支持4种注册中心,（multicast,zookeeper,redis,simple，nacos） 推荐使用Zookeeper注册中心  
+[register简介](https://www.cnblogs.com/duanxz/p/3772765.html)    
+simple作为注册中心的意思，起一个服务作为注册中心，这样的好处是减少第三方的依赖。  
 
 从手册中摘要的主要流程：
 调用关系说明
@@ -84,7 +85,7 @@ loadbalance进行设置（方法级别），value如下：
 3.隐式参数 RpcContext.getContext().setAttachment("index", "1"); // 隐式传参，后面的远程调用都会隐式将这些参数发送到服务器端，类似cookie，用于框架集成，不建议常规业务使用  RpcContext.getContext().getAttachment("index");   
 
 ##  泛化接口调用  
-generic参数配置，其实就是通过反射的机制来参数具体的方法名，参数类型，参数值，调用。
+generic参数配置，其实就是通过反射的机制来参数具体的方法名，参数类型，参数值，调用。通过ReferenceConfig创建一个容器，设置要调用的接口路径字符串，参数，并设置generi=true就可以了。返回接口也均封装成map的形式。我个人认为是为了改变方法的签名跟方法名的一种方式。
 
 ##  上下文信息  
 RpcContext 
@@ -223,7 +224,15 @@ connection 在 IO 线程上，将连接断开事件放入队列，有序逐个�
 fixed 固定大小线程池，启动时建立线程，不关闭，一直持有。(缺省，注意的是这个跟jdk的fixThreadpool是不一样的。)  
 cached 缓存线程池，空闲一分钟自动删除，需要时重建。  
 limited 可伸缩线程池，但池中的线程数只会增长不会收缩。只增长不收缩的目的是为了避免收缩时突然来了大流量引起的性能问题。  
-eager 优先创建Worker线程池。在任务数量大于corePoolSize但是小于maximumPoolSize时，优先创建Worker来处理任务。当任务数量大于maximumPoolSize时，将任务放入阻塞队列中。阻塞队列充满时抛出RejectedExecutionException。(相比于cached:cached在任务数量超过maximumPoolSize时直接抛出异常而不是将任务放入阻塞队列)  
+eager 优先创建Worker线程池。在任务数量大于corePoolSize但是小于maximumPoolSize时，优先创建Worker来处理任务。当任务数量大于maximumPoolSize时，将任务放入阻塞队列中。阻塞队列充满时抛出RejectedExecutionException。(相比于cached:cached在任务数量超过maximumPoolSize时直接抛出异常而不是将任务放入阻塞队列)    
+
+服务暴露有三种形式：不暴露，本地，远程。dubbo默认是本地加远程。本地暴露的话，就是遵循JVMProtocol，也就相当于注册中心在本地。    
+在服务暴露的时候，分两步连接，一步是通过构建netty来监听服务端口，另外一步是通过curator或者zkclient 连接zk来把服务信息写入。  
+
+在服务引用的时候，因为继承了FactoryBean，那么当注入的时候，就会通过工厂方法来获取，这时候就会通过代理，来决定服务是如何注入的，这里又会涉及到是懒汉式还是饿汉式，通过配置参数init来决定，默认是懒汉式也就是一开始就加载了。   
+在这个过程中，会缓存服务的信息，构建服务目录。   
+
+dubbo的服务异步同步调用，区别在于，如果是同步，那么调用future的get方法阻塞等待，直到拿到结果为止，而异步调用，直接将结果注册到RPCcontext,做标记，让后面有需要的时候根据key去拿，但是不一定保证每次拿都拿得到。
 
 
 
